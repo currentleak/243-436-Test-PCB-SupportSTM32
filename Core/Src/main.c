@@ -170,10 +170,37 @@ int main(void)
   /* Display "Hello ST7920" in text mode (line 0) */
   st7920_set_cursor(0, 0);  
   st7920_print("Hello ST7920");
-  
   /* Display "LCD Works!" in line 1 */
   st7920_set_cursor(1, 0);  
   st7920_print("LCD Works!");
+
+  HAL_Delay(2000);
+
+  st7920_print_line(0, "STM32F407");
+  st7920_print_line(1, "I2C & LCD Demo");
+
+  
+  // --- LCD Graphics Mode Test Routine ---
+  st7920_enter_graphics_mode();  // Switch to graphics mode (128x64 pixels)
+  st7920_fb_clear();             // Clear framebuffer (all pixels off)
+  // Draw a diagonal line from (0,0) to (63,63)
+  for (int i = 0; i < 64; ++i) {
+    st7920_set_pixel(i, i, 1);  // Set pixel on
+  }
+  // Draw a rectangle border
+  for (int x = 0; x < 128; ++x) {
+    st7920_set_pixel(x, 0, 1);
+    st7920_set_pixel(x, 63, 1);
+  }
+  for (int y = 0; y < 64; ++y) {
+    st7920_set_pixel(0, y, 1);
+    st7920_set_pixel(127, y, 1);
+  }
+  // Draw text as graphics
+  st7920_draw_text8x8(10, 10, "243-436");
+
+  st7920_paint();  // Update display with framebuffer contents
+  // --- End LCD Graphics Mode Test ---
   
   HAL_Delay(2000);
 
@@ -189,21 +216,17 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    // Update LCD with counter every 1 second
-    static uint32_t last_update = 0;
-    if (HAL_GetTick() - last_update >= 1000) {
-      last_update = HAL_GetTick();
-      
-      char line0[17];
-      char line1[17];
-      
-      snprintf(line0, sizeof(line0), "STM32 Active");
-      snprintf(line1, sizeof(line1), "Count: %06lu", counter);
-      
-      st7920_update_display(line0, line1);
-      
-      counter++;
-    }
+    // // Update LCD with counter every 1 second
+    // static uint32_t last_update = 0;
+    // if (HAL_GetTick() - last_update >= 1000) {
+    //   last_update = HAL_GetTick();
+    //   char line0[17];
+    //   char line1[17]; 
+    //   snprintf(line0, sizeof(line0), "STM32 Active");
+    //   snprintf(line1, sizeof(line1), "Count: %06lu", counter);
+    //   st7920_update_display(line0, line1);
+    //   counter++;
+    // }
     
     // toggle LEDs to indicate activity
     HAL_GPIO_TogglePin(GPIOD, LD3_Pin|LD4_Pin|LD5_Pin|LD6_Pin);

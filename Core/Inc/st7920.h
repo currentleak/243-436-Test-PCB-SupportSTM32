@@ -62,10 +62,12 @@ void st7920_enter_graphics_mode(void);
 void st7920_write_command(uint8_t cmd);
 void st7920_write_data(uint8_t data);
 void st7920_clear(void);
+void st7920_clear_gdram(void); // Clear GDRAM in graphics mode
 void st7920_set_cursor(int row, int col);  // Position cursor: row (0-3), col (0-15)
 void st7920_print(const char *s);
 void st7920_print_line(int row, const char *str);  // Print exactly 16 chars on row (0 or 1), pad with spaces
 void st7920_update_display(const char *line0, const char *line1);  // Safe update of both lines
+void st7920_draw_text8x8(int x, int y, const char *str); // Draw string in graphics framebuffer
 void st7920_bus_test(void);
 
 // Framebuffer API for 128x64 graphics mode

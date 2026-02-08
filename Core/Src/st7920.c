@@ -1,3 +1,4 @@
+
 /* st7920.c - 8-bit parallel ST7920 driver with framebuffer support (128x64 graphics)
    HAL-based, assumes CubeMX GPIO initialization.
    Framebuffer: 128x64 / 8 = 1024 bytes, each byte = 8 pixels (MSB = leftmost).
@@ -7,11 +8,31 @@
 #include <stdint.h>
 #include "st7920.h"
 #include "main.h"
-
+#include "font8x8.h"
 // Framebuffer: 128 pixels wide, 64 pixels high => 16 bytes per row, 64 rows
 #define FB_STRIDE  (ST7920_FB_WIDTH / 8)  // 16 bytes per row
 #define FB_SIZE    (FB_STRIDE * ST7920_FB_HEIGHT)  // 1024 bytes
 static uint8_t framebuffer[FB_SIZE];  // 1 KB framebuffer
+
+
+// Draw a string in graphics framebuffer at (x, y), using 8x8 font
+void st7920_draw_text8x8(int x, int y, const char *str) {
+  while (*str) {
+    char c = *str;
+    if (c < 32 || c > 127) c = 32; // fallback to space
+    int idx = c - 32;
+    for (int row = 0; row < 8; ++row) {
+      uint8_t bits = font8x8_basic[idx][row];
+      for (int col = 0; col < 8; ++col) {
+        if (bits & (1 << (7 - col))) {
+          st7920_set_pixel(x + col, y + row, 1);
+        }
+      }
+    }
+    x += 8;
+    ++str;
+  }
+}
 
 static void st7920_write_bus(uint8_t v)
 {
@@ -67,6 +88,25 @@ void st7920_clear(void)
   HAL_Delay(5);  // Generous delay for clear
 }
 
+void st7920_clear_gdram(void)
+{
+  for (int row = 0; row < 32; ++row) {
+    st7920_write_command(0x80 + row);
+    st7920_write_command(0x80);
+    for (int col = 0; col < FB_STRIDE; ++col) {
+      st7920_write_data(0x00);
+    }
+  }
+  for (int row = 0; row < 32; ++row) {
+    st7920_write_command(0x80 + row);
+    st7920_write_command(0x88);
+    for (int col = 0; col < FB_STRIDE; ++col) {
+      st7920_write_data(0x00);
+    }
+  }
+  HAL_Delay(2);
+}
+
 void st7920_set_cursor(int row, int col)
 {
   // Position cursor for text mode (row 0-3, col 0-15)
@@ -82,8 +122,8 @@ void st7920_set_cursor(int row, int col)
 void st7920_print_line(int row, const char *str)
 {
   // Print exactly 16 characters on a line (row 0 or 1), padded with spaces
-  if (row < 0 || row > 1)
-    return;  // only lines 0 and 1 are visible on 2-line display
+//  if (row < 0 || row > 1)
+//    return;  // only lines 0 and 1 are visible on 2-line display
   
   // Position cursor at start of line
   st7920_set_cursor(row, 0);
@@ -167,34 +207,33 @@ int st7920_get_pixel(int x, int y)
 
 void st7920_paint(void)
 {
-  // Write framebuffer to ST7920 GDRAM
-  // 64 rows total: first write sets upper half (rows 0-31), auto-wraps for lower (rows 32-63)
-  
+  // Ensure we are in graphics mode (RE=1, G=1)
+  st7920_write_command(0x36); // Extended instruction set, graphics ON
+  HAL_Delay(1);
+
+  // Write upper half (rows 0-31)
   for (int row = 0; row < 32; ++row) {
-    // Set vertical address (0x80-0x9F for upper half)
-    st7920_write_command(0x80 + row);
-    // Set horizontal address (0x80 = column 0)
-    st7920_write_command(0x80);
-    
-    // Write 16 bytes for this row (upper half)
+    st7920_write_command(0x80 | row); // Set vertical address
+    st7920_write_command(0x80);       // Set horizontal address (leftmost, upper)
     int offset = row * FB_STRIDE;
     for (int col = 0; col < FB_STRIDE; ++col) {
       st7920_write_data(framebuffer[offset + col]);
+      for (volatile int d = 0; d < 20; ++d) __NOP(); // Short delay for LCD
     }
+    HAL_Delay(1); // Delay after each row
   }
-  
-  // Repeat for lower half (rows 32-63)
-  // Address automatically wraps, but we repeat the command sequence to be safe
+
+  // Write lower half (rows 32-63)
   for (int row = 0; row < 32; ++row) {
-    st7920_write_command(0x80 + row);
-    st7920_write_command(0x80);
-    
+    st7920_write_command(0x80 | row); // Set vertical address (same as upper)
+    st7920_write_command(0x88);       // Set horizontal address (leftmost, lower)
     int offset = (32 + row) * FB_STRIDE;
     for (int col = 0; col < FB_STRIDE; ++col) {
       st7920_write_data(framebuffer[offset + col]);
+      for (volatile int d = 0; d < 20; ++d) __NOP(); // Short delay for LCD
     }
+    HAL_Delay(1); // Delay after each row
   }
-  
   HAL_Delay(2);
 }
 
@@ -234,19 +273,13 @@ void st7920_enter_graphics_mode(void)
 {
   // Exit text mode and enter graphics mode
   // Must follow proper sequence to avoid corruption
-  
-  // Step 1: Switch to extended instruction set (RE=1, G=0)
   st7920_write_command(0x30);  // Basic set first (if already in extended, this goes back to basic)
   HAL_Delay(1);
   st7920_write_command(0x34);  // 0011 0100 = RE=1, G=0 (extended, graphics OFF)
   HAL_Delay(5);
-  
-  // Step 2: Enable graphics mode (RE=1, G=1)
   st7920_write_command(0x36);  // 0011 0110 = RE=1, G=1 (extended, graphics ON)
   HAL_Delay(5);
-  
-  // Step 3: Clear all GDRAM
-  st7920_clear();
+  st7920_clear_gdram();        // Proper GDRAM clear
   HAL_Delay(2);
 }
 

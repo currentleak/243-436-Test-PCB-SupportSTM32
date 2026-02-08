@@ -33,6 +33,7 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/syscalls.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/st7920.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/drv82xx.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/font8x8.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32f407xx.s
 )
 
