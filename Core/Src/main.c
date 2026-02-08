@@ -21,7 +21,7 @@
 #include "usb_host.h"
 #include <stdio.h>
 #include <stdarg.h>
-#include "drv8234.h"
+#include "drv82xx.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -136,29 +136,29 @@ int main(void)
   HAL_GPIO_WritePin(GPIOE, PE4_MB1_RST_Pin, GPIO_PIN_SET);  
   I2C_ScanBus(3);
 
-  /* Example: DRV8234 devices on each bus - replace addresses with actual ones */
-  drv8234_t drv1_bus1 = { .hi2c = &hi2c1, .address = 0x33 };
-  drv8234_t drv2_bus1 = { .hi2c = &hi2c1, .address = 0x32 };
-  drv8234_t drv1_bus3 = { .hi2c = &hi2c3, .address = 0x33 };
-  drv8234_t drv2_bus3 = { .hi2c = &hi2c3, .address = 0x32 };
+  /* Example: drv82xx devices on each bus - replace addresses with actual ones */
+  drv82xx_t drv1_bus1 = { .hi2c = &hi2c1, .address = 0x33 };
+  drv82xx_t drv2_bus1 = { .hi2c = &hi2c1, .address = 0x32 };
+  drv82xx_t drv1_bus3 = { .hi2c = &hi2c3, .address = 0x33 };
+  drv82xx_t drv2_bus3 = { .hi2c = &hi2c3, .address = 0x32 };
   /* Initialize and enable example drivers */
   HAL_StatusTypeDef st;
 
-  st = drv8234_init(&drv1_bus1);
-  uart2_printf("DRV8234 init @0x%02X: %s (st=%d)\r\n", drv1_bus1.address, (st==HAL_OK)?"OK":"ERR", (int)st);
-  if (st == HAL_OK) { drv8234_set_enable(&drv1_bus1, 1); uart2_printf(" Enabled 0x%02X\r\n", drv1_bus1.address); }
+  st = drv82xx_init(&drv1_bus1);
+  uart2_printf("drv82xx init @0x%02X: %s (st=%d)\r\n", drv1_bus1.address, (st==HAL_OK)?"OK":"ERR", (int)st);
+  if (st == HAL_OK) { drv82xx_set_enable(&drv1_bus1, 1); uart2_printf(" Enabled 0x%02X\r\n", drv1_bus1.address); }
 
-  st = drv8234_init(&drv2_bus1);
-  uart2_printf("DRV8234 init @0x%02X: %s (st=%d)\r\n", drv2_bus1.address, (st==HAL_OK)?"OK":"ERR", (int)st);
-  if (st == HAL_OK) { drv8234_set_enable(&drv2_bus1, 1); uart2_printf(" Enabled 0x%02X\r\n", drv2_bus1.address); }
+  st = drv82xx_init(&drv2_bus1);
+  uart2_printf("drv82xx init @0x%02X: %s (st=%d)\r\n", drv2_bus1.address, (st==HAL_OK)?"OK":"ERR", (int)st);
+  if (st == HAL_OK) { drv82xx_set_enable(&drv2_bus1, 1); uart2_printf(" Enabled 0x%02X\r\n", drv2_bus1.address); }
 
-  st = drv8234_init(&drv1_bus3);
-  uart2_printf("DRV8234 init @0x%02X: %s (st=%d)\r\n", drv1_bus3.address, (st==HAL_OK)?"OK":"ERR", (int)st);
-  if (st == HAL_OK) { drv8234_set_enable(&drv1_bus3, 1); uart2_printf(" Enabled 0x%02X\r\n", drv1_bus3.address); }
+  st = drv82xx_init(&drv1_bus3);
+  uart2_printf("drv82xx init @0x%02X: %s (st=%d)\r\n", drv1_bus3.address, (st==HAL_OK)?"OK":"ERR", (int)st);
+  if (st == HAL_OK) { drv82xx_set_enable(&drv1_bus3, 1); uart2_printf(" Enabled 0x%02X\r\n", drv1_bus3.address); }
 
-  st = drv8234_init(&drv2_bus3);
-  uart2_printf("DRV8234 init @0x%02X: %s (st=%d)\r\n", drv2_bus3.address, (st==HAL_OK)?"OK":"ERR", (int)st);
-  if (st == HAL_OK) { drv8234_set_enable(&drv2_bus3, 1); uart2_printf(" Enabled 0x%02X\r\n", drv2_bus3.address); }
+  st = drv82xx_init(&drv2_bus3);
+  uart2_printf("drv82xx init @0x%02X: %s (st=%d)\r\n", drv2_bus3.address, (st==HAL_OK)?"OK":"ERR", (int)st);
+  if (st == HAL_OK) { drv82xx_set_enable(&drv2_bus3, 1); uart2_printf(" Enabled 0x%02X\r\n", drv2_bus3.address); }
 
   /* USER CODE END 2 */
 
