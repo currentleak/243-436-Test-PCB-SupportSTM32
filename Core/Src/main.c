@@ -19,12 +19,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usb_host.h"
-#include <stdio.h>
-#include <stdarg.h>
-#include "drv82xx.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
+#include <stdarg.h>
+#include "drv82xx.h"
+#include "st7920.h"
 
 /* USER CODE END Includes */
 
@@ -37,6 +38,9 @@
 /* USER CODE BEGIN PD */
 
 /* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
 
 /* USER CODE END PM */
 
@@ -75,10 +79,10 @@ static void MX_SPI2_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART3_UART_Init(void);
 void MX_USB_HOST_Process(void);
-static void I2C_ScanBus(int);
-static int uart2_printf(const char *fmt, ...);
 
 /* USER CODE BEGIN PFP */
+static void I2C_ScanBus(int bus_number);
+static int uart2_printf(const char *fmt, ...);
 
 /* USER CODE END PFP */
 
@@ -159,6 +163,31 @@ int main(void)
   st = drv82xx_init(&drv2_bus3);
   uart2_printf("drv82xx init @0x%02X: %s (st=%d)\r\n", drv2_bus3.address, (st==HAL_OK)?"OK":"ERR", (int)st);
   if (st == HAL_OK) { drv82xx_set_enable(&drv2_bus3, 1); uart2_printf(" Enabled 0x%02X\r\n", drv2_bus3.address); }
+
+  /* Initialize ST7920 LCD (pins configured by CubeMX) - now in graphics mode (128x64) */
+  st7920_init();
+  
+  // Example: clear and draw patterns on the framebuffer
+  st7920_fb_clear();
+  
+  // Draw a border (top and bottom lines)
+  for (int x = 0; x < 128; ++x) {
+    st7920_set_pixel(x, 0, 1);
+    st7920_set_pixel(x, 63, 1);
+  }
+  // Draw left and right borders
+  for (int y = 0; y < 64; ++y) {
+    st7920_set_pixel(0, y, 1);
+    st7920_set_pixel(127, y, 1);
+  }
+  
+  // Draw a diagonal line from top-left to bottom-right
+  for (int i = 0; i < 64; ++i) {
+    st7920_set_pixel(i * 2, i, 1);
+  }
+  
+  // Write framebuffer to display
+  st7920_paint();
 
   /* USER CODE END 2 */
 
@@ -631,14 +660,22 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, PE2_MB2_RST_Pin|CS_I2C_SPI_Pin|PE4_MB1_RST_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, PE2_MB2_RST_Pin|CS_I2C_SPI_Pin|PE4_MB1_RST_Pin|ST7920_D0_Pin
+                          |ST7920_D1_Pin|ST7920_D2_Pin|ST7920_D3_Pin|ST7920_D4_Pin
+                          |ST7920_D5_Pin|ST7920_D6_Pin|ST7920_D7_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(OTG_FS_PowerSwitchOn_GPIO_Port, OTG_FS_PowerSwitchOn_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, LD4_Pin|LD3_Pin|LD5_Pin|LD6_Pin
-                          |Audio_RST_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, ST7920_PSB_Pin|ST7920_WR_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOD, ST7920_RS_Pin|LD4_Pin|LD3_Pin|LD5_Pin
+                          |LD6_Pin|Audio_RST_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(ST7920_E_GPIO_Port, ST7920_E_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PE2_MB2_RST_Pin CS_I2C_SPI_Pin PE4_MB1_RST_Pin */
   GPIO_InitStruct.Pin = PE2_MB2_RST_Pin|CS_I2C_SPI_Pin|PE4_MB1_RST_Pin;
@@ -688,6 +725,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : ST7920_D0_Pin ST7920_D1_Pin ST7920_D2_Pin ST7920_D3_Pin
+                           ST7920_D4_Pin ST7920_D5_Pin ST7920_D6_Pin ST7920_D7_Pin */
+  GPIO_InitStruct.Pin = ST7920_D0_Pin|ST7920_D1_Pin|ST7920_D2_Pin|ST7920_D3_Pin
+                          |ST7920_D4_Pin|ST7920_D5_Pin|ST7920_D6_Pin|ST7920_D7_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
   /*Configure GPIO pin : CLK_IN_Pin */
   GPIO_InitStruct.Pin = CLK_IN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -695,6 +741,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
   HAL_GPIO_Init(CLK_IN_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : ST7920_PSB_Pin ST7920_WR_Pin ST7920_RS_Pin */
+  GPIO_InitStruct.Pin = ST7920_PSB_Pin|ST7920_WR_Pin|ST7920_RS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LD4_Pin LD3_Pin LD5_Pin LD6_Pin
                            Audio_RST_Pin */
@@ -705,11 +758,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : OTG_FS_OverCurrent_Pin */
-  GPIO_InitStruct.Pin = OTG_FS_OverCurrent_Pin;
+  /*Configure GPIO pins : OTG_FS_OverCurrent_Pin ST7920_NC_Pin */
+  GPIO_InitStruct.Pin = OTG_FS_OverCurrent_Pin|ST7920_NC_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(OTG_FS_OverCurrent_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : ST7920_E_Pin */
+  GPIO_InitStruct.Pin = ST7920_E_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  HAL_GPIO_Init(ST7920_E_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : MEMS_INT2_Pin */
   GPIO_InitStruct.Pin = MEMS_INT2_Pin;
@@ -776,6 +836,7 @@ static void I2C_ScanBus(int bus_number)
     else
     {
       uart2_printf("Invalid bus number: %d\r\n", bus_number);
+      uart2_printf("Valid is: 1 or 3\r\n");
       return;
     }
     HAL_Delay(1);
