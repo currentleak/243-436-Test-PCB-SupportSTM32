@@ -164,35 +164,24 @@ int main(void)
   uart2_printf("drv82xx init @0x%02X: %s (st=%d)\r\n", drv2_bus3.address, (st==HAL_OK)?"OK":"ERR", (int)st);
   if (st == HAL_OK) { drv82xx_set_enable(&drv2_bus3, 1); uart2_printf(" Enabled 0x%02X\r\n", drv2_bus3.address); }
 
-  /* Initialize ST7920 LCD (pins configured by CubeMX) - now in graphics mode (128x64) */
+  /* Initialize ST7920 LCD in TEXT mode (2 lines x 16 chars) */
   st7920_init();
   
-  // Example: clear and draw patterns on the framebuffer
-  st7920_fb_clear();
+  /* Display "Hello ST7920" in text mode (line 0) */
+  st7920_set_cursor(0, 0);  
+  st7920_print("Hello ST7920");
   
-  // Draw a border (top and bottom lines)
-  for (int x = 0; x < 128; ++x) {
-    st7920_set_pixel(x, 0, 1);
-    st7920_set_pixel(x, 63, 1);
-  }
-  // Draw left and right borders
-  for (int y = 0; y < 64; ++y) {
-    st7920_set_pixel(0, y, 1);
-    st7920_set_pixel(127, y, 1);
-  }
+  /* Display "LCD Works!" in line 1 */
+  st7920_set_cursor(1, 0);  
+  st7920_print("LCD Works!");
   
-  // Draw a diagonal line from top-left to bottom-right
-  for (int i = 0; i < 64; ++i) {
-    st7920_set_pixel(i * 2, i, 1);
-  }
-  
-  // Write framebuffer to display
-  st7920_paint();
+  HAL_Delay(2000);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint32_t counter = 0;
   while (1)
   {
     /* USER CODE END WHILE */
@@ -200,9 +189,25 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
+    // Update LCD with counter every 1 second
+    static uint32_t last_update = 0;
+    if (HAL_GetTick() - last_update >= 1000) {
+      last_update = HAL_GetTick();
+      
+      char line0[17];
+      char line1[17];
+      
+      snprintf(line0, sizeof(line0), "STM32 Active");
+      snprintf(line1, sizeof(line1), "Count: %06lu", counter);
+      
+      st7920_update_display(line0, line1);
+      
+      counter++;
+    }
+    
     // toggle LEDs to indicate activity
-  HAL_GPIO_TogglePin(GPIOD, LD3_Pin|LD4_Pin|LD5_Pin|LD6_Pin);
-  HAL_Delay(200);
+    HAL_GPIO_TogglePin(GPIOD, LD3_Pin|LD4_Pin|LD5_Pin|LD6_Pin);
+    HAL_Delay(200);
 
 
   }
@@ -813,7 +818,7 @@ static void I2C_ScanBus(int bus_number)
   uart2_printf("\r\n========================================\r\n");
   uart2_printf("I2C%d Bus Scan\r\n", bus_number);
   uart2_printf("========================================\r\n");
-  uart2_printf("Scanning addresses 0x08 to 0x77...\r\n\r\n");
+  uart2_printf("Scanning addresses 0x08 to 0x77...\r\n");
 
   for (address = 0x08; address <= 0x77; address++)
   {
@@ -841,10 +846,8 @@ static void I2C_ScanBus(int bus_number)
     }
     HAL_Delay(1);
   }
-
-  uart2_printf("\r\n========================================\r\n");
   uart2_printf("Total devices found: %u\r\n", devices_found);
-  uart2_printf("========================================\r\n\r\n");
+  uart2_printf("========================================\r\n");
 
   if (devices_found == 0)
   {
